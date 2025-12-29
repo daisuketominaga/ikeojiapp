@@ -36,7 +36,8 @@ const QUESTION_PROMPT = `あなたは、人間の深層心理と可能性を見�
   "reason": "（なぜこの質問を選んだのか。ユーザーの回答パターンに基づく理由）"
 }`;
 
-// 質問プール（質問数と回答パターンに応じて選択）
+// 質問プール（15問に最適化：early 5問、mid 5問、late 5問）
+// 必須質問：id 21（奥さんの質問）、id 22（顔面偏差値）
 const QUESTION_POOL: Array<{
   id: number;
   text: string;
@@ -47,7 +48,7 @@ const QUESTION_POOL: Array<{
   priority: number; // 優先度（低いほど優先）
   isRequired?: boolean; // 必須質問フラグ
 }> = [
-  // 初期段階（1-7問）
+  // 初期段階（1-5問）- 5問
   {
     id: 1,
     text: 'あなたはどちらを重視しますか？',
@@ -100,46 +101,22 @@ const QUESTION_POOL: Array<{
     stage: 'early',
     priority: 4
   },
+  // 顔面偏差値（外見の自己評価）の質問 - 必須（early）
   {
-    id: 5,
-    text: '人生で最も譲れないものは？',
-    leftLabel: '成功と達成',
-    rightLabel: '愛とつながり',
+    id: 22,
+    text: '自分の外見（顔面偏差値）をどのように評価していますか？',
+    leftLabel: '平均以下〜普通（控えめな自己評価）',
+    rightLabel: '平均以上〜自信あり（高い自己評価）',
     examples: [
-      { left: 'キャリアの成功と家族の時間、どちらを優先しますか？', right: 'それとも家族との時間を優先しますか？' },
-      { left: '目標達成のために、個人の時間を犠牲にできますか？', right: 'それとも大切な人との時間を守りますか？' },
-      { left: '大きな成功を掴むために、人間関係を犠牲にできますか？', right: 'それとも人間関係を最優先にしますか？' }
+      { left: '正直に言って、自分の外見には自信がありません。内面で勝負したいと考えています。', right: '自分の外見にはそれなりに自信があり、第一印象でアドバンテージがあると感じています。' },
+      { left: '鏡を見ても特別イケメンだとは思わない。でもそれでいいと思っています。', right: '周りからも褒められることが多く、外見は自分の武器の一つだと感じています。' },
+      { left: '外見よりも中身で評価されたいと思っています。', right: '見た目を磨くことも自己投資の一つとして大切にしています。' }
     ],
     stage: 'early',
-    priority: 5
+    priority: 5,
+    isRequired: true
   },
-  {
-    id: 6,
-    text: 'ストレス対処法は？',
-    leftLabel: '一人で考える時間',
-    rightLabel: '誰かと話す時間',
-    examples: [
-      { left: '仕事でストレスを感じた時、一人で静かに考える時間が必要ですか？', right: 'それとも誰かと話して気持ちを共有したいですか？' },
-      { left: '悩みがある時、一人で解決策を見つけたいですか？', right: 'それとも信頼できる人に相談したいですか？' },
-      { left: '疲れた時、一人でリラックスしたいですか？', right: 'それとも誰かと一緒に過ごしたいですか？' }
-    ],
-    stage: 'early',
-    priority: 6
-  },
-  {
-    id: 7,
-    text: 'あなたの強みは？',
-    leftLabel: '実行力と効率',
-    rightLabel: '共感力と理解',
-    examples: [
-      { left: 'プロジェクトを進める際、効率的に実行する能力を発揮しますか？', right: 'それともチームメンバーの気持ちを理解する能力を発揮しますか？' },
-      { left: '目標達成のために、迅速に行動できますか？', right: 'それとも相手の立場を理解してから行動しますか？' },
-      { left: '仕事で、タスクを効率的に処理することを重視しますか？', right: 'それとも人間関係を大切にしますか？' }
-    ],
-    stage: 'early',
-    priority: 7
-  },
-  // 中盤（8-14問）
+  // 中盤（6-10問）- 5問
   {
     id: 8,
     text: '理想の休日は？',
@@ -180,19 +157,6 @@ const QUESTION_POOL: Array<{
     priority: 3
   },
   {
-    id: 11,
-    text: 'あなたの行動原理は？',
-    leftLabel: '可能性を広げる',
-    rightLabel: '本質を深める',
-    examples: [
-      { left: '新しいスキルを学ぶ際、幅広い知識を身につけたいですか？', right: 'それとも特定の分野を深く極めたいですか？' },
-      { left: 'キャリアで、様々な経験を積みたいですか？', right: 'それとも一つの分野を極めたいですか？' },
-      { left: '人生で、多くの可能性を広げたいですか？', right: 'それとも深い理解を獲得したいですか？' }
-    ],
-    stage: 'mid',
-    priority: 4
-  },
-  {
     id: 12,
     text: '仕事や活動において、何を優先しますか？',
     leftLabel: '結果と成果',
@@ -203,35 +167,24 @@ const QUESTION_POOL: Array<{
       { left: '評価される時、成果を評価されたいですか？', right: 'それとも努力や成長を評価されたいですか？' }
     ],
     stage: 'mid',
-    priority: 5
+    priority: 4
   },
+  // 必須質問（必ず1回含める）- mid
   {
-    id: 13,
-    text: 'あなたの人生哲学は？',
-    leftLabel: '変革と革新',
-    rightLabel: '伝統と継承',
+    id: 21,
+    text: 'あなたには奥さんがいます。その上で何が大切だと考えますか？',
+    leftLabel: '奥様への絶対的な愛の誓い',
+    rightLabel: '誰にも絶対に分からなければ自分の性欲に正直になる',
     examples: [
-      { left: '社会を変えるために、新しいアイデアを実現したいですか？', right: 'それとも伝統的な価値観を守りたいですか？' },
-      { left: '組織で、革新的な改革を推進したいですか？', right: 'それとも既存の文化を継承したいですか？' },
-      { left: '人生で、新しいことに挑戦したいですか？', right: 'それとも伝統を大切にしたいですか？' }
+      { left: '結婚した以上、奥様への愛と忠誠を最優先にしますか？', right: 'それとも、誰にも分からなければ自分の欲望に正直になりますか？' },
+      { left: '結婚生活では、奥様への誠実さを守りますか？', right: 'それとも、バレなければ自分の欲求を満たしますか？' },
+      { left: 'パートナーシップで、絶対的な信頼関係を築きますか？', right: 'それとも、秘密があっても問題ないと考えますか？' }
     ],
     stage: 'mid',
-    priority: 6
+    priority: 0,
+    isRequired: true
   },
-  {
-    id: 14,
-    text: '他人に影響を与えるとき、どのような方法を使いますか？',
-    leftLabel: '言葉と論理で説得',
-    rightLabel: '行動と姿勢で示す',
-    examples: [
-      { left: '意見を伝える時、論理的に説明して説得しますか？', right: 'それとも行動で示しますか？' },
-      { left: 'チームを導く時、言葉で明確に指示しますか？', right: 'それとも背中で示しますか？' },
-      { left: '影響を与える時、説得力のある言葉を使いますか？', right: 'それとも行動で示しますか？' }
-    ],
-    stage: 'mid',
-    priority: 7
-  },
-  // 後半（15-20問）
+  // 後半（11-15問）- 5問
   {
     id: 15,
     text: 'あなたが最も憧れる人物の特徴は？',
@@ -259,19 +212,6 @@ const QUESTION_POOL: Array<{
     priority: 2
   },
   {
-    id: 17,
-    text: 'あなたのコミュニケーションスタイルは？',
-    leftLabel: '明確で直接的',
-    rightLabel: '柔らかく間接的',
-    examples: [
-      { left: '意見を伝える時、はっきりと直接的に伝えますか？', right: 'それとも柔らかく間接的に伝えますか？' },
-      { left: 'フィードバックをする時、率直に伝えますか？', right: 'それとも配慮して伝えますか？' },
-      { left: 'コミュニケーションで、明確さを重視しますか？', right: 'それとも和を重視しますか？' }
-    ],
-    stage: 'late',
-    priority: 3
-  },
-  {
     id: 18,
     text: '成功とは何だと思いますか？',
     leftLabel: '目標達成と勝利',
@@ -282,48 +222,33 @@ const QUESTION_POOL: Array<{
       { left: '成功とは、勝利することですか？', right: 'それとも幸せを感じることですか？' }
     ],
     stage: 'late',
+    priority: 3
+  },
+  {
+    id: 23,
+    text: '身だしなみや見た目のケアについて、どう考えますか？',
+    leftLabel: '最低限でOK',
+    rightLabel: '積極的に投資',
+    examples: [
+      { left: '清潔感があれば十分。ファッションやスキンケアにあまり時間やお金をかけない。', right: 'ファッション、ヘアスタイル、スキンケアなど、見た目には積極的に投資している。' },
+      { left: '服装は機能性重視。ブランドやトレンドにはこだわらない。', right: '自分に似合うスタイルを追求し、常に最良の状態でいたい。' },
+      { left: '外見を磨く時間があれば、スキルアップに使いたい。', right: '外見を磨くことも大切なスキルの一つだと考えている。' }
+    ],
+    stage: 'late',
     priority: 4
   },
   {
-    id: 19,
-    text: 'あなたが最も大切にする人間関係は？',
-    leftLabel: '刺激的な関係',
-    rightLabel: '安定した関係',
+    id: 25,
+    text: '年齢を重ねることについて、どう感じますか？',
+    leftLabel: '自然に任せる',
+    rightLabel: '抗って磨く',
     examples: [
-      { left: '人間関係で、刺激的で新しい発見がある関係を大切にしますか？', right: 'それとも安定した信頼関係を大切にしますか？' },
-      { left: '友人関係で、新しい体験を共有する関係を重視しますか？', right: 'それとも長く続く安定した関係を重視しますか？' },
-      { left: '人間関係で、変化や成長を促す関係を選びますか？', right: 'それとも安心できる関係を選びますか？' }
+      { left: '年相応に老いることは自然なこと。アンチエイジングには興味がない。', right: '年齢を重ねても若々しくいたい。健康や見た目のケアを怠らない。' },
+      { left: '白髪やシワは人生の証。無理に隠そうとは思わない。', right: '運動、食事、スキンケアで常に最良のコンディションを維持したい。' },
+      { left: '内面の成熟が大切。見た目の老いは受け入れる。', right: '見た目年齢を若く保つことも自己管理の一つ。' }
     ],
     stage: 'late',
     priority: 5
-  },
-  {
-    id: 20,
-    text: '10年後の自分はどうなっていたいですか？',
-    leftLabel: '新しい領域を開拓',
-    rightLabel: '深い理解を獲得',
-    examples: [
-      { left: '10年後、新しい分野で活躍したいですか？', right: 'それとも現在の分野で深い専門性を獲得したいですか？' },
-      { left: '将来、様々な経験を積みたいですか？', right: 'それとも一つのことを極めたいですか？' },
-      { left: '10年後、広い視野を持ちたいですか？', right: 'それとも深い知識を持ちたいですか？' }
-    ],
-    stage: 'late',
-    priority: 6
-  },
-  // 必須質問（必ず1回含める）
-  {
-    id: 21,
-    text: 'あなたには奥さんがいます。その上で何が大切だと考えますか？',
-    leftLabel: '奥様への絶対的な愛の誓い',
-    rightLabel: '誰にも絶対に分からなければ自分の性欲に正直になる',
-    examples: [
-      { left: '結婚した以上、奥様への愛と忠誠を最優先にしますか？', right: 'それとも、誰にも分からなければ自分の欲望に正直になりますか？' },
-      { left: '結婚生活では、奥様への誠実さを守りますか？', right: 'それとも、バレなければ自分の欲求を満たしますか？' },
-      { left: 'パートナーシップで、絶対的な信頼関係を築きますか？', right: 'それとも、秘密があっても問題ないと考えますか？' }
-    ],
-    stage: 'mid', // 中盤で必ず含める
-    priority: 0, // 最高優先度
-    isRequired: true // 必須フラグ
   }
 ];
 
@@ -372,11 +297,11 @@ export async function POST(request: NextRequest) {
       ? recentAnswers.reduce((sum, score) => sum + score, 0) / recentAnswers.length 
       : averageScore;
     
-    // 質問のステージを決定（15問に調整）
+    // 質問のステージを決定（15問に調整：early 5問、mid 5問、late 5問）
     let stage: 'early' | 'mid' | 'late';
-    if (questionCount <= 5) {
+    if (questionCount < 5) {
       stage = 'early';
-    } else if (questionCount <= 10) {
+    } else if (questionCount < 10) {
       stage = 'mid';
     } else {
       stage = 'late';
@@ -400,17 +325,27 @@ export async function POST(request: NextRequest) {
     console.log('使用済み質問ID:', usedQuestionIds);
     console.log('使用済み質問テキスト:', usedQuestionTexts);
     
-    // 必須質問（id: 21）がまだ使用されていないかチェック
-    const requiredQuestion = QUESTION_POOL.find(q => q.id === 21);
-    const isRequiredQuestionUsed = usedQuestionIds.includes(21) || usedQuestionTexts.some(text => text.includes('奥さんがいます'));
+    // 必須質問のチェック
+    // id: 21（奥さんの質問）は中盤で
+    // id: 22（顔面偏差値）は早い段階で
+    const requiredQuestion21 = QUESTION_POOL.find(q => q.id === 21);
+    const requiredQuestion22 = QUESTION_POOL.find(q => q.id === 22);
+    const isRequired21Used = usedQuestionIds.includes(21) || usedQuestionTexts.some(text => text.includes('奥さんがいます'));
+    const isRequired22Used = usedQuestionIds.includes(22) || usedQuestionTexts.some(text => text.includes('顔面偏差値'));
     
     // ステージに合う質問をフィルタリング
     let availableQuestions = QUESTION_POOL.filter(q => q.stage === stage);
     
-    // 必須質問が未使用で、中盤以降の場合は必須質問を優先的に追加（15問に調整）
-    if (!isRequiredQuestionUsed && questionCount >= 5 && questionCount <= 10 && requiredQuestion) {
+    // 顔面偏差値の質問（id: 22）を早い段階（3-4問目）で優先的に追加
+    if (!isRequired22Used && questionCount >= 2 && questionCount < 5 && requiredQuestion22) {
+      availableQuestions = [requiredQuestion22, ...availableQuestions.filter(q => q.id !== 22)];
+      console.log('顔面偏差値の質問（id: 22）を優先的に追加しました');
+    }
+    
+    // 必須質問（id: 21）が未使用で、中盤（6-8問目）の場合は必須質問を優先的に追加
+    if (!isRequired21Used && questionCount >= 5 && questionCount < 8 && requiredQuestion21) {
       // 必須質問を利用可能な質問リストの先頭に追加
-      availableQuestions = [requiredQuestion, ...availableQuestions.filter(q => q.id !== 21)];
+      availableQuestions = [requiredQuestion21, ...availableQuestions.filter(q => q.id !== 21)];
       console.log('必須質問（id: 21）を優先的に追加しました');
     }
     
@@ -430,9 +365,20 @@ export async function POST(request: NextRequest) {
     console.log('未使用の質問数:', unusedQuestions.length);
     console.log('未使用の質問ID:', unusedQuestions.map(q => q.id));
     
-    // 必須質問が未使用で、中盤以降の場合は必須質問を優先的に選択（15問に調整）
+    // 必須質問を優先的に選択
     let selectedQuestion: typeof QUESTION_POOL[0] | undefined;
-    if (!isRequiredQuestionUsed && questionCount >= 5 && questionCount <= 10 && requiredQuestion) {
+    
+    // 顔面偏差値の質問（id: 22）を早い段階（3-4問目）で優先選択
+    if (!isRequired22Used && questionCount >= 2 && questionCount < 5 && requiredQuestion22) {
+      const requiredInUnused = unusedQuestions.find(q => q.id === 22);
+      if (requiredInUnused) {
+        console.log('顔面偏差値の質問（id: 22）を優先的に選択します');
+        selectedQuestion = requiredInUnused;
+      }
+    }
+    
+    // 奥さんの質問（id: 21）を中盤（6-8問目）で優先選択
+    if (!selectedQuestion && !isRequired21Used && questionCount >= 5 && questionCount < 8 && requiredQuestion21) {
       const requiredInUnused = unusedQuestions.find(q => q.id === 21);
       if (requiredInUnused) {
         console.log('必須質問（id: 21）を優先的に選択します');
@@ -548,9 +494,14 @@ export async function POST(request: NextRequest) {
     
     // 質問が見つからない場合のフォールバック
     if (!selectedQuestion) {
-      // 必須質問が未使用の場合は優先（15問に調整）
-      if (!isRequiredQuestionUsed && requiredQuestion && questionCount >= 5 && questionCount <= 10) {
-        selectedQuestion = requiredQuestion;
+      // 顔面偏差値の質問が未使用の場合は優先（早い段階）
+      if (!isRequired22Used && requiredQuestion22 && questionCount >= 1 && questionCount <= 4) {
+        selectedQuestion = requiredQuestion22;
+        console.log('フォールバック: 顔面偏差値の質問を選択');
+      } 
+      // 奥さんの質問が未使用の場合は優先（中盤）
+      else if (!isRequired21Used && requiredQuestion21 && questionCount >= 5 && questionCount <= 10) {
+        selectedQuestion = requiredQuestion21;
         console.log('フォールバック: 必須質問を選択');
       } else {
         selectedQuestion = availableQuestions[0] || QUESTION_POOL[0];

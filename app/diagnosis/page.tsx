@@ -113,7 +113,8 @@ export default function DiagnosisPage() {
     const newQuestionCount = questionCount + 1;
     setQuestionCount(newQuestionCount);
 
-    if (isLastQuestion) {
+    // 15問目を回答した後は診断結果を表示
+    if (newQuestionCount >= TOTAL_QUESTIONS) {
       handleSubmit(newAnswers);
     } else {
       setCurrentQuestionId(currentQuestionId + 1);
@@ -131,7 +132,12 @@ export default function DiagnosisPage() {
           body: JSON.stringify({
             answers: newAnswers,
             questionCount: newQuestionCount,
-            questionHistory: newQuestionHistory.map(q => ({ id: q.id || 0, text: q.text })),
+            questionHistory: newQuestionHistory.map(q => ({ 
+              id: q.id || 0, 
+              text: q.text,
+              leftLabel: q.leftLabel || '',
+              rightLabel: q.rightLabel || ''
+            })),
           }),
         });
 

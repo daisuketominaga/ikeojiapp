@@ -1,19 +1,24 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend } from 'recharts';
 
 interface QuestionAnalysis {
   questionNumber: number;
   questionText: string;
+  fullQuestionText?: string;
+  leftLabel?: string;
+  rightLabel?: string;
   userAnswer: number;
+  selectedChoice?: string;
   interpretation: string;
   impact: {
     execution: number;
     humanity: number;
     style: number;
     charm: number;
+    appearance: number;
   };
 }
 
@@ -34,6 +39,7 @@ interface Benchmark {
     humanity: number;
     style: number;
     charm: number;
+    appearance: number;
   };
 }
 
@@ -47,6 +53,7 @@ interface ResultData {
     humanity: number;
     style: number;
     charm: number;
+    appearance: number;
   };
   questionAnalysis?: QuestionAnalysis[];
   positioningText: string;
@@ -57,124 +64,10 @@ export default function ResultPage() {
   const router = useRouter();
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [showQuestionDetails, setShowQuestionDetails] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
 
-  // シェア用テキストを生成
-  const generateShareText = () => {
-    if (!resultData) return '';
-    
-    const valueTypeText = resultData.valueType 
-      ? `${resultData.valueType.main} ${resultData.valueType.sub}` 
-      : '';
-    
-    const totalScore = ((resultData.scores.execution + resultData.scores.humanity + 
-                         resultData.scores.style + resultData.scores.charm) / 4).toFixed(1);
-    
-    return `🎯 イケオジ診断結果
 
-${valueTypeText ? `📊 価値観タイプ: ${valueTypeText}\n` : ''}
-👔 ${resultData.userArchetype}
-
-💎 核となる価値観: ${resultData.coreValue}
-
-📈 総合スコア: ${totalScore}/100点
-・実行力: ${resultData.scores.execution}点
-・人間性: ${resultData.scores.humanity}点
-・表現力: ${resultData.scores.style}点
-・魅力: ${resultData.scores.charm}点
-
-🏆 近い価値観の偉人:
-${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} ${b.name}`).join('\n')}
-
-#イケオジ診断`;
-  };
-
-  // クリップボードにコピー
-  const handleCopyResult = async () => {
-    const text = generateShareText();
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // フォールバック
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  // Web Share API でシェア
-  const handleShare = async () => {
-    const text = generateShareText();
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'イケオジ診断結果',
-          text: text,
-        });
-      } catch (err) {
-        // ユーザーがキャンセルした場合など
-        console.log('Share cancelled');
-      }
-    } else {
-      // Web Share API が使えない場合はコピー
-      handleCopyResult();
-    }
-  };
-
-  // アプリ自体をシェアする
-  const handleShareApp = async () => {
-    const shareText = `🎯 イケオジ診断やってみて！
-
-15の質問に答えるだけで、あなたの価値観と近い歴史上の偉人がわかるよ！
-
-👔 所要時間：約3分
-📊 AI分析で深層心理を解析
-👑 ガンジー？織田信長？あなたは誰に近い？
-
-#イケオジ診断`;
-
-    const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'イケオジ診断',
-          text: shareText,
-          url: shareUrl,
-        });
-      } catch (err) {
-        console.log('Share cancelled');
-      }
-    } else {
-      // Web Share APIが使えない場合はURLをコピー
-      try {
-        await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        const textArea = document.createElement('textarea');
-        textArea.value = `${shareText}\n\n${shareUrl}`;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
-    }
-  };
 
   useEffect(() => {
     const storedData = localStorage.getItem('ikeojiResult');
@@ -203,81 +96,6 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
     
     router.push('/diagnosis');
   }, [router]);
-
-  // PDF出力関数
-  const handleExportPDF = async () => {
-    if (!contentRef.current || !resultData) return;
-
-    setIsGeneratingPDF(true);
-    try {
-      // @ts-ignore
-      const html2canvas = (await import('html2canvas')).default;
-      // @ts-ignore
-      const { jsPDF } = await import('jspdf');
-
-      const content = contentRef.current;
-      const contentHeight = content.scrollHeight;
-      const contentWidth = content.scrollWidth;
-
-      const canvas = await html2canvas(content, {
-        backgroundColor: '#0f0f23',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        width: contentWidth,
-        height: contentHeight,
-        windowWidth: contentWidth,
-        windowHeight: contentHeight,
-        scrollY: -window.scrollY,
-        scrollX: 0,
-      });
-
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      
-      const scale = pdfWidth / imgWidth;
-      const scaledWidth = pdfWidth;
-      const scaledHeight = imgHeight * scale;
-      
-      const pageContentHeight = pdfHeight - 10;
-      let remainingHeight = scaledHeight;
-      let currentPosition = 0;
-      let pageNumber = 0;
-
-      while (remainingHeight > 0) {
-        if (pageNumber > 0) {
-          pdf.addPage();
-        }
-        
-        pdf.addImage(
-          imgData,
-          'PNG',
-          0,
-          5 - (currentPosition * scale),
-          scaledWidth,
-          scaledHeight
-        );
-        
-        currentPosition += pageContentHeight / scale;
-        remainingHeight -= pageContentHeight;
-        pageNumber++;
-      }
-
-      const fileName = `イケオジ診断_${resultData.userArchetype.replace(/[^\w\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g, '_')}_${new Date().toLocaleDateString('ja-JP').replace(/\//g, '-')}.pdf`;
-      pdf.save(fileName);
-    } catch (error) {
-      console.error('PDF生成エラー:', error);
-      alert('PDFの生成に失敗しました。もう一度お試しください。');
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -309,17 +127,19 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
     );
   }
 
-  // レーダーチャート用のデータ
+  // レーダーチャート用のデータ（5象限）
   const chartData = [
     { subject: '実行力', user: resultData.scores.execution, benchmark: 100 },
     { subject: '人間性', user: resultData.scores.humanity, benchmark: 100 },
     { subject: '表現力', user: resultData.scores.style, benchmark: 100 },
     { subject: '魅力', user: resultData.scores.charm, benchmark: 100 },
+    { subject: '外見力', user: resultData.scores.appearance || 50, benchmark: 100 },
   ];
 
-  const totalScoreOutOf400 = resultData.scores.execution + resultData.scores.humanity + 
-                              resultData.scores.style + resultData.scores.charm;
-  const totalScoreOutOf100 = (totalScoreOutOf400 / 4).toFixed(1);
+  const totalScoreOutOf500 = resultData.scores.execution + resultData.scores.humanity + 
+                              resultData.scores.style + resultData.scores.charm + 
+                              (resultData.scores.appearance || 50);
+  const totalScoreOutOf100 = (totalScoreOutOf500 / 5).toFixed(1);
 
   const getRankBadge = (rank: number) => {
     switch(rank) {
@@ -360,8 +180,8 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
       <div className="orb orb-purple w-48 h-48 top-1/3 -left-24 animate-float delay-200 opacity-30" />
       <div className="orb orb-pink w-32 h-32 bottom-48 right-8 animate-float delay-400 opacity-30" />
 
-      {/* PDF用コンテンツ */}
-      <div ref={contentRef} className="relative z-10 px-4 py-8 sm:px-6 max-w-2xl mx-auto pdf-content">
+      {/* コンテンツ */}
+      <div className="relative z-10 px-4 py-8 sm:px-6 max-w-2xl mx-auto">
         
         {/* 価値観タイプ表示（最上部） */}
         {resultData.valueType && (
@@ -463,13 +283,14 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
             </ResponsiveContainer>
           </div>
 
-          {/* 各スコア詳細 */}
+          {/* 各スコア詳細（5象限） */}
           <div className="grid grid-cols-2 gap-3 mt-4">
             {[
               { label: '実行力', score: resultData.scores.execution, color: 'from-blue-500 to-cyan-500' },
               { label: '人間性', score: resultData.scores.humanity, color: 'from-green-500 to-emerald-500' },
               { label: '表現力', score: resultData.scores.style, color: 'from-purple-500 to-pink-500' },
               { label: '魅力', score: resultData.scores.charm, color: 'from-orange-500 to-red-500' },
+              { label: '外見力', score: resultData.scores.appearance || 50, color: 'from-rose-500 to-pink-400' },
             ].map((item) => (
               <div key={item.label} className="bg-white/5 rounded-xl p-3 border border-white/10">
                 <div className="flex justify-between items-center mb-2">
@@ -535,6 +356,7 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
                 { label: '人間性', gap: resultData.benchmarks[0].gaps.humanity, score: resultData.scores.humanity },
                 { label: '表現力', gap: resultData.benchmarks[0].gaps.style, score: resultData.scores.style },
                 { label: '魅力', gap: resultData.benchmarks[0].gaps.charm, score: resultData.scores.charm },
+                { label: '外見力', gap: resultData.benchmarks[0].gaps.appearance || 0, score: resultData.scores.appearance || 50 },
               ].map((item) => (
                 <div key={item.label} className="bg-white/5 rounded-xl p-3 border border-white/10 text-center">
                   <p className="text-gray-400 text-xs mb-1">{item.label}</p>
@@ -604,7 +426,7 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
               </button>
               
               <p className="text-gray-400 text-sm mt-2">
-                各質問への回答が4象限にどう影響したかを確認できます
+                各質問への回答が5象限にどう影響したかを確認できます
               </p>
 
               {showQuestionDetails && (
@@ -628,20 +450,34 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
                           </div>
                         </div>
 
+                        {/* 選択肢の表示 */}
+                        {qa.leftLabel && qa.rightLabel && (
+                          <div className="flex items-center gap-2 mb-3 text-xs">
+                            <div className={`flex-1 p-2 rounded-lg text-center ${qa.userAnswer <= 2 ? 'bg-blue-500/30 border border-blue-400/50 text-blue-300' : 'bg-white/5 text-gray-400'}`}>
+                              ⬅️ {qa.leftLabel}
+                            </div>
+                            <div className="text-gray-500 text-[10px]">vs</div>
+                            <div className={`flex-1 p-2 rounded-lg text-center ${qa.userAnswer >= 4 ? 'bg-orange-500/30 border border-orange-400/50 text-orange-300' : 'bg-white/5 text-gray-400'}`}>
+                              {qa.rightLabel} ➡️
+                            </div>
+                          </div>
+                        )}
+
                         {/* 回答の解釈 */}
                         <div className="bg-white/5 rounded-lg p-3 mb-3">
                           <p className="text-gray-300 text-xs leading-relaxed">
-                            💭 {qa.interpretation}
+                            🎯 あなたの選択: <span className="text-white font-medium">{qa.interpretation}</span>
                           </p>
                         </div>
 
-                        {/* 4象限への影響 */}
-                        <div className="grid grid-cols-4 gap-2">
+                        {/* 5象限への影響 */}
+                        <div className="grid grid-cols-5 gap-1">
                           {[
                             { key: 'execution', label: '実行力', value: qa.impact.execution },
                             { key: 'humanity', label: '人間性', value: qa.impact.humanity },
                             { key: 'style', label: '表現力', value: qa.impact.style },
                             { key: 'charm', label: '魅力', value: qa.impact.charm },
+                            { key: 'appearance', label: '外見力', value: qa.impact.appearance || 0 },
                           ].map((impact) => (
                             <div 
                               key={impact.key}
@@ -658,7 +494,7 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
                     );
                   })}
 
-                  {/* 影響度サマリー */}
+                  {/* 影響度サマリー（5象限） */}
                   <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-xl p-4 border border-indigo-500/20">
                     <h3 className="text-white font-bold text-sm mb-3">📊 影響度サマリー</h3>
                     <div className="grid grid-cols-2 gap-3">
@@ -683,6 +519,11 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
                           total: resultData.questionAnalysis.reduce((sum, q) => sum + q.impact.charm, 0),
                           final: resultData.scores.charm
                         },
+                        { 
+                          label: '外見力', 
+                          total: resultData.questionAnalysis.reduce((sum, q) => sum + (q.impact.appearance || 0), 0),
+                          final: resultData.scores.appearance || 50
+                        },
                       ].map((item) => (
                         <div key={item.label} className="bg-white/5 rounded-lg p-3">
                           <div className="flex justify-between items-center mb-1">
@@ -705,63 +546,13 @@ ${resultData.benchmarks.map((b, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '
         {/* アクションボタン */}
         <div className={`mt-8 space-y-3 transition-all duration-700 delay-800 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           
-          {/* シェアボタン（一番目立つ位置に） */}
-          <button
-            onClick={handleShare}
-            className="w-full py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 shadow-lg shadow-green-500/30"
-          >
-            <span>📤</span>
-            <span>友達にシェアする</span>
-          </button>
-
-          {/* コピーボタン */}
-          <button
-            onClick={handleCopyResult}
-            className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
-              copied 
-                ? 'bg-green-500/20 border border-green-500/50 text-green-400' 
-                : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span>{copied ? '✅' : '📋'}</span>
-            <span>{copied ? 'コピーしました！' : '結果をコピー'}</span>
-          </button>
-
-          {/* PDF出力 */}
-          <button
-            onClick={handleExportPDF}
-            disabled={isGeneratingPDF}
-            className="w-full py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
-          >
-            {isGeneratingPDF ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>PDF生成中...</span>
-              </>
-            ) : (
-              <>
-                <span>📄</span>
-                <span>PDFで保存</span>
-              </>
-            )}
-          </button>
-
-          {/* この診断を友達に教える */}
-          <button
-            onClick={handleShareApp}
-            className="w-full py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 shadow-lg shadow-orange-500/30"
-          >
-            <span>🔗</span>
-            <span>この診断を友達に教える</span>
-          </button>
-
           {/* 最初に戻る */}
           <button
             onClick={() => {
               localStorage.removeItem('ikeojiResult');
               router.push('/');
             }}
-            className="w-full py-4 rounded-2xl font-bold text-lg bg-white/5 border border-white/10 text-gray-400 flex items-center justify-center gap-2 transition-all hover:bg-white/10 hover:text-white"
+            className="w-full py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 shadow-lg shadow-indigo-500/30"
           >
             <span>🏠</span>
             <span>トップに戻る</span>

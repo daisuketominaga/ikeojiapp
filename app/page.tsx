@@ -105,7 +105,7 @@ export default function Home() {
           <FeatureCard 
             icon="📊" 
             title="可視化" 
-            description="4つの軸で評価"
+            description="5つの軸で評価"
             delay={200}
           />
         </div>

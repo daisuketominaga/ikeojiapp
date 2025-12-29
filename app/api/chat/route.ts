@@ -1,501 +1,454 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 価値観タイプと歴史上の偉人のデータベース
-const VALUE_TYPE_DATABASE = `
-### 価値観タイプ分類と歴史上の偉人データベース
+// 歴史上の偉人データベース
+const HISTORICAL_FIGURES = [
+  // 【革新と変革】タイプ
+  { name: "スティーブ・ジョブズ", type: "革新と変革", subType: "テクノロジー革新者", scores: { execution: 95, humanity: 60, style: 90, charm: 95, appearance: 70 }, description: "直感とデザインで世界を変えた革新者" },
+  { name: "トーマス・エジソン", type: "革新と変革", subType: "テクノロジー革新者", scores: { execution: 100, humanity: 50, style: 70, charm: 80, appearance: 50 }, description: "1000回の失敗を恐れない実験精神の持ち主" },
+  { name: "ニコラ・テスラ", type: "革新と変革", subType: "テクノロジー革新者", scores: { execution: 85, humanity: 55, style: 75, charm: 70, appearance: 60 }, description: "天才的ビジョンで未来を先取りした発明家" },
+  { name: "松下幸之助", type: "革新と変革", subType: "産業革命者", scores: { execution: 90, humanity: 85, style: 80, charm: 90, appearance: 65 }, description: "水道哲学で産業民主化を実現" },
+  { name: "豊臣秀吉", type: "革新と変革", subType: "社会システム革新者", scores: { execution: 100, humanity: 60, style: 85, charm: 95, appearance: 55 }, description: "身分を超えて頂点に立った変革者" },
+  
+  // 【論理と効率】タイプ
+  { name: "アルベルト・アインシュタイン", type: "論理と効率", subType: "科学的思考者", scores: { execution: 75, humanity: 80, style: 65, charm: 85, appearance: 45 }, description: "直感と論理を融合した天才物理学者" },
+  { name: "アイザック・ニュートン", type: "論理と効率", subType: "科学的思考者", scores: { execution: 90, humanity: 40, style: 50, charm: 70, appearance: 40 }, description: "自然法則を数学で解明" },
+  { name: "徳川家康", type: "論理と効率", subType: "戦略的経営者", scores: { execution: 95, humanity: 70, style: 60, charm: 80, appearance: 55 }, description: "忍耐と戦略で260年の平和を構築" },
+  { name: "渋沢栄一", type: "論理と効率", subType: "戦略的経営者", scores: { execution: 90, humanity: 90, style: 75, charm: 85, appearance: 60 }, description: "論理と倫理を融合した経営哲学" },
+  { name: "レオナルド・ダ・ヴィンチ", type: "論理と効率", subType: "システム構築者", scores: { execution: 80, humanity: 70, style: 100, charm: 90, appearance: 75 }, description: "芸術と科学を統合した万能の天才" },
+  
+  // 【共感とリーダーシップ】タイプ
+  { name: "マハトマ・ガンジー", type: "共感とリーダーシップ", subType: "非暴力・平和主義者", scores: { execution: 100, humanity: 100, style: 95, charm: 100, appearance: 50 }, description: "非暴力で帝国に勝利" },
+  { name: "ネルソン・マンデラ", type: "共感とリーダーシップ", subType: "非暴力・平和主義者", scores: { execution: 95, humanity: 100, style: 90, charm: 100, appearance: 70 }, description: "27年の投獄を経て和解を導く" },
+  { name: "マーティン・ルーサー・キング", type: "共感とリーダーシップ", subType: "非暴力・平和主義者", scores: { execution: 90, humanity: 100, style: 100, charm: 95, appearance: 75 }, description: "夢と愛で社会を変革" },
+  { name: "西郷隆盛", type: "共感とリーダーシップ", subType: "義と信念の指導者", scores: { execution: 90, humanity: 95, style: 70, charm: 100, appearance: 60 }, description: "義を貫き、最後まで信念を守る" },
+  { name: "坂本龍馬", type: "共感とリーダーシップ", subType: "義と信念の指導者", scores: { execution: 85, humanity: 90, style: 95, charm: 100, appearance: 70 }, description: "対立を超えて新時代を構想" },
+  { name: "リンカーン", type: "共感とリーダーシップ", subType: "義と信念の指導者", scores: { execution: 95, humanity: 95, style: 90, charm: 90, appearance: 55 }, description: "国家統一と奴隷解放を実現" },
+  { name: "マザー・テレサ", type: "共感とリーダーシップ", subType: "慈悲と奉仕の指導者", scores: { execution: 85, humanity: 100, style: 75, charm: 95, appearance: 45 }, description: "貧者への無償の愛" },
+  
+  // 【芸術と表現】タイプ
+  { name: "ミケランジェロ", type: "芸術と表現", subType: "視覚芸術の巨匠", scores: { execution: 90, humanity: 60, style: 100, charm: 85, appearance: 55 }, description: "神の創造を人間の手で表現" },
+  { name: "葛飾北斎", type: "芸術と表現", subType: "視覚芸術の巨匠", scores: { execution: 95, humanity: 65, style: 100, charm: 75, appearance: 45 }, description: "70歳を超えて進化し続けた" },
+  { name: "パブロ・ピカソ", type: "芸術と表現", subType: "視覚芸術の巨匠", scores: { execution: 85, humanity: 55, style: 100, charm: 95, appearance: 70 }, description: "様式を次々と革新" },
+  { name: "ベートーヴェン", type: "芸術と表現", subType: "音楽・文学の巨匠", scores: { execution: 95, humanity: 70, style: 100, charm: 85, appearance: 50 }, description: "聴覚を失っても創造を続けた" },
+  { name: "モーツァルト", type: "芸術と表現", subType: "音楽・文学の巨匠", scores: { execution: 80, humanity: 75, style: 100, charm: 95, appearance: 65 }, description: "天才的な美の創造者" },
+  { name: "夏目漱石", type: "芸術と表現", subType: "音楽・文学の巨匠", scores: { execution: 75, humanity: 85, style: 95, charm: 70, appearance: 50 }, description: "近代日本の心を描いた" },
+  
+  // 【戦略と勝利】タイプ
+  { name: "ナポレオン・ボナパルト", type: "戦略と勝利", subType: "軍事戦略家", scores: { execution: 100, humanity: 45, style: 85, charm: 100, appearance: 65 }, description: "電撃戦で欧州を制覇" },
+  { name: "ユリウス・カエサル", type: "戦略と勝利", subType: "軍事戦略家", scores: { execution: 100, humanity: 60, style: 90, charm: 100, appearance: 75 }, description: "政治と軍事を統合" },
+  { name: "アレクサンドロス大王", type: "戦略と勝利", subType: "軍事戦略家", scores: { execution: 100, humanity: 50, style: 85, charm: 100, appearance: 85 }, description: "30歳で世界帝国を築く" },
+  { name: "織田信長", type: "戦略と勝利", subType: "戦国の覇者", scores: { execution: 100, humanity: 40, style: 90, charm: 95, appearance: 70 }, description: "革新と破壊で時代を変えた" },
+  { name: "上杉謙信", type: "戦略と勝利", subType: "戦国の覇者", scores: { execution: 95, humanity: 80, style: 75, charm: 90, appearance: 65 }, description: "義を重んじた軍神" },
+  { name: "武田信玄", type: "戦略と勝利", subType: "戦国の覇者", scores: { execution: 95, humanity: 75, style: 70, charm: 90, appearance: 55 }, description: "人は石垣の人材活用" },
+  { name: "ウィンストン・チャーチル", type: "戦略と勝利", subType: "政治的勝利者", scores: { execution: 95, humanity: 70, style: 100, charm: 95, appearance: 50 }, description: "決して諦めない精神" },
+  
+  // 【哲学と思索】タイプ
+  { name: "孔子", type: "哲学と思索", subType: "東洋哲学者", scores: { execution: 70, humanity: 100, style: 80, charm: 90, appearance: 50 }, description: "仁と礼の道を説いた" },
+  { name: "釈迦", type: "哲学と思索", subType: "東洋哲学者", scores: { execution: 75, humanity: 100, style: 85, charm: 100, appearance: 45 }, description: "苦からの解放を説いた" },
+  { name: "ソクラテス", type: "哲学と思索", subType: "西洋哲学者", scores: { execution: 65, humanity: 85, style: 90, charm: 90, appearance: 40 }, description: "無知の知を説いた" },
+  { name: "アリストテレス", type: "哲学と思索", subType: "西洋哲学者", scores: { execution: 80, humanity: 75, style: 85, charm: 85, appearance: 50 }, description: "万学の祖" },
+  
+  // 【誠実と献身】タイプ
+  { name: "野口英世", type: "誠実と献身", subType: "科学への献身者", scores: { execution: 100, humanity: 80, style: 60, charm: 75, appearance: 45 }, description: "黄熱病研究に命を捧げた" },
+  { name: "フローレンス・ナイチンゲール", type: "誠実と献身", subType: "社会への献身者", scores: { execution: 95, humanity: 100, style: 75, charm: 85, appearance: 65 }, description: "看護を科学に変えた献身" },
+  { name: "杉原千畝", type: "誠実と献身", subType: "社会への献身者", scores: { execution: 85, humanity: 100, style: 60, charm: 80, appearance: 55 }, description: "6000人のユダヤ人を救った" },
+  
+  // 【調和と共存】タイプ
+  { name: "聖徳太子", type: "調和と共存", subType: "和解と統合の指導者", scores: { execution: 85, humanity: 95, style: 80, charm: 90, appearance: 60 }, description: "和を以て貴しとなす" },
+];
 
-#### 1. 【革新と変革】タイプ
-このタイプは既存の枠組みを超え、新しい価値を創造することに情熱を持つ。
-
-**1-A. テクノロジー革新者**
-- スティーブ・ジョブズ（Apple創業者）：直感とデザインで世界を変えた革新者
-- トーマス・エジソン（発明家）：1000回の失敗を恐れない実験精神の持ち主
-- ニコラ・テスラ（発明家）：天才的ビジョンで未来を先取りした発明家
-- アラン・チューリング（計算機科学の父）：論理と革新を融合させた先駆者
-- グラハム・ベル（電話の発明者）：コミュニケーション革命を起こした発明家
-
-**1-B. 産業革命者**
-- ヘンリー・フォード（自動車産業の父）：大量生産で社会構造を変革
-- アンドリュー・カーネギー（鉄鋼王）：産業と慈善を両立した経営者
-- ジョン・D・ロックフェラー（石油王）：産業の統合と効率化を極めた実業家
-- 松下幸之助（パナソニック創業者）：「水道哲学」で産業民主化を実現
-
-**1-C. 社会システム革新者**
-- 豊臣秀吉（天下統一）：身分を超えて頂点に立った変革者
-- ピョートル大帝（ロシア皇帝）：国家の近代化を強力に推進
-- 明治天皇（近代日本の象徴）：国家の大転換を導いた
-
-#### 2. 【論理と効率】タイプ
-このタイプはデータと分析に基づき、最適解を追求する。
-
-**2-A. 科学的思考者**
-- アルベルト・アインシュタイン（物理学者）：直感と論理を融合した天才
-- アイザック・ニュートン（物理学者）：自然法則を数学で解明
-- チャールズ・ダーウィン（生物学者）：観察と論理で進化論を構築
-- マリー・キュリー（物理学者・化学者）：科学への献身と論理的探求
-- ガリレオ・ガリレイ（天文学者）：観察と実験で真理を追求
-
-**2-B. 戦略的経営者**
-- 徳川家康（江戸幕府初代将軍）：忍耐と戦略で260年の平和を構築
-- 渋沢栄一（日本資本主義の父）：論理と倫理を融合した経営哲学
-- ピーター・ドラッカー（経営学者）：経営を科学として体系化
-- 本田宗一郎（ホンダ創業者）：技術と経営の論理的融合
-
-**2-C. システム構築者**
-- レオナルド・ダ・ヴィンチ（万能の天才）：芸術と科学を統合
-- ベンジャミン・フランクリン（政治家・科学者）：実用主義と論理の融合
-- 福沢諭吉（教育者）：西洋の論理を日本に導入
-
-#### 3. 【共感とリーダーシップ】タイプ
-このタイプは人々の心を動かし、大義のために人々を導く。
-
-**3-A. 非暴力・平和主義者**
-- マハトマ・ガンジー（インド独立の父）：非暴力で帝国に勝利
-- ネルソン・マンデラ（南アフリカ大統領）：27年の投獄を経て和解を導く
-- マーティン・ルーサー・キング・ジュニア（公民権運動指導者）：夢と愛で社会を変革
-- ダライ・ラマ14世（チベット仏教最高指導者）：慈悲と対話の精神
-
-**3-B. 義と信念の指導者**
-- 西郷隆盛（明治維新の志士）：義を貫き、最後まで信念を守る
-- 坂本龍馬（幕末の志士）：対立を超えて新時代を構想
-- 吉田松陰（思想家・教育者）：弟子を育て、維新の礎を築く
-- リンカーン（アメリカ大統領）：国家統一と奴隷解放を実現
-
-**3-C. 慈悲と奉仕の指導者**
-- マザー・テレサ（修道女）：貧者への無償の愛
-- フローレンス・ナイチンゲール（看護師）：看護を科学に変えた献身
-- ヘレン・ケラー（社会活動家）：障害を超えて人々に希望を与えた
-- アルベルト・シュバイツァー（医師・神学者）：アフリカで生涯を捧げた
-
-#### 4. 【芸術と表現】タイプ
-このタイプは美と創造性を通じて人々の心に訴える。
-
-**4-A. 視覚芸術の巨匠**
-- ミケランジェロ（ルネサンスの芸術家）：神の創造を人間の手で表現
-- 葛飾北斎（浮世絵師）：70歳を超えて進化し続けた
-- パブロ・ピカソ（画家）：様式を次々と革新
-- フィンセント・ファン・ゴッホ（画家）：情熱を色彩に込めた
-- レンブラント（画家）：光と影で人間の魂を描いた
-
-**4-B. 音楽・文学の巨匠**
-- ヴォルフガング・アマデウス・モーツァルト（作曲家）：天才的な美の創造者
-- ルートヴィヒ・ヴァン・ベートーヴェン（作曲家）：聴覚を失っても創造を続けた
-- 夏目漱石（作家）：近代日本の心を描いた
-- ウィリアム・シェイクスピア（劇作家）：人間の普遍性を言葉で表現
-- 宮沢賢治（作家・詩人）：自然と精神を詩で表現
-
-**4-C. 建築・デザインの革新者**
-- アントニ・ガウディ（建築家）：自然を建築で表現
-- フランク・ロイド・ライト（建築家）：有機的建築の創始者
-- 千利休（茶人）：わびさびの美学を完成
-
-#### 5. 【戦略と勝利】タイプ
-このタイプは競争環境で最適な判断を下し、勝利を収める。
-
-**5-A. 軍事戦略家**
-- ナポレオン・ボナパルト（フランス皇帝）：電撃戦で欧州を制覇
-- 孫子（兵法家）：「戦わずして勝つ」の極意
-- ユリウス・カエサル（ローマの将軍）：政治と軍事を統合
-- アレクサンドロス大王（マケドニア王）：30歳で世界帝国を築く
-- ハンニバル・バルカ（カルタゴの将軍）：戦術の天才
-
-**5-B. 戦国の覇者**
-- 織田信長（戦国武将）：革新と破壊で時代を変えた
-- 上杉謙信（戦国武将）：義を重んじた軍神
-- 武田信玄（戦国武将）：「人は石垣」の人材活用
-- 毛利元就（戦国武将）：「三本の矢」の団結力
-- 伊達政宗（戦国武将）：独眼竜の先見性
-
-**5-C. 政治的勝利者**
-- ウィンストン・チャーチル（イギリス首相）：決して諦めない精神
-- オットー・フォン・ビスマルク（ドイツ宰相）：鉄血宰相の現実主義
-- 諸葛亮（三国時代の軍師）：知略と忠義の象徴
-
-#### 6. 【哲学と思索】タイプ
-このタイプは物事の本質を追求し、深い洞察を持つ。
-
-**6-A. 東洋哲学者**
-- 孔子（中国の思想家）：仁と礼の道を説いた
-- 老子（中国の思想家）：「道」の哲学を創始
-- 釈迦（仏教の開祖）：苦からの解放を説いた
-- 空海（真言宗開祖）：密教を日本に伝えた
-- 道元（曹洞宗開祖）：「只管打坐」の禅を説いた
-
-**6-B. 西洋哲学者**
-- ソクラテス（古代ギリシャの哲学者）：「無知の知」を説いた
-- プラトン（古代ギリシャの哲学者）：理想国家を構想
-- アリストテレス（古代ギリシャの哲学者）：万学の祖
-- イマヌエル・カント（哲学者）：純粋理性批判
-- フリードリヒ・ニーチェ（哲学者）：「超人」思想
-
-**6-C. 実践的思想家**
-- マルクス・アウレリウス（ローマ皇帝・哲学者）：ストア哲学を実践
-- ミシェル・ド・モンテーニュ（哲学者）：「エセー」で自己探求
-- ラルフ・ワルド・エマーソン（思想家）：自己信頼の哲学
-
-#### 7. 【誠実と献身】タイプ
-このタイプは真摯に使命に向き合い、献身的に働く。
-
-**7-A. 科学への献身者**
-- 野口英世（医学者）：黄熱病研究に命を捧げた
-- ルイ・パスツール（微生物学者）：ワクチンで人類を救う
-- 北里柴三郎（医学者）：破傷風菌の発見
-- ジョナス・ソーク（医学者）：ポリオワクチンを無償で提供
-
-**7-B. 社会への献身者**
-- ガンジー（すでに記載）
-- ナイチンゲール（すでに記載）
-- 中村哲（医師）：アフガニスタンに用水路を建設
-- 杉原千畝（外交官）：6000人のユダヤ人を救った
-
-#### 8. 【調和と共存】タイプ
-このタイプは対立を超えて共存の道を探る。
-
-**8-A. 和解と統合の指導者**
-- マンデラ（すでに記載）
-- 聖徳太子（飛鳥時代の政治家）：「和を以て貴しとなす」
-- デズモンド・ツツ大主教（南アフリカの聖職者）：真実和解委員会
-- アナン国連事務総長（ガーナ出身）：国際協調を推進
-
-**8-B. 文化交流の架け橋**
-- マルコ・ポーロ（探検家）：東西文化の架け橋
-- 鑑真（唐の僧侶）：6度の渡航失敗を経て日本に仏教を伝えた
-- ザビエル（宣教師）：キリスト教を日本に伝えた
-`;
-
-const SYSTEM_PROMPT = `あなたは、人間の深層心理と可能性を見抜く、世界最高峰のプロファイリングAIです。
-ユーザーは15問の対極的な価値観に関する質問に5段階評価（1-5点）で回答しています。
-各質問は対極的な2つの価値観の間で選択を求めており、回答パターンから深層心理を分析してください。
-
-${VALUE_TYPE_DATABASE}
-
-### 重要：固定の類型（タイプ）を使用してはいけません。
-ユーザーは一人ひとり異なります。5段階評価の回答パターンから、その人のためだけの分析結果をリアルタイムに生成してください。
-
-### 分析プロセス
-
-1. **回答パターンの深層分析**
-   - 各質問の5段階評価（1-5点）を詳細に分析
-   - 左寄り（1-2点）と右寄り（4-5点）の回答の分布を確認
-   - 中間（3点）の回答が多ければ、バランス型や慎重型の可能性
-   - 極端な回答（1点や5点）が多い場合は、強い価値観の表れ
-   - 回答の一貫性や矛盾から、潜在的な価値観の衝突を発見
-
-2. **価値観タイプの特定**
-   回答パターンから、以下の8つの価値観タイプのうち、最も該当するものを特定してください：
-   
-   **主要8タイプ：**
-   - 【革新と変革】：既存の枠組みを超え、新しい価値を創造する
-   - 【論理と効率】：データと分析に基づき、最適解を追求する
-   - 【共感とリーダーシップ】：人々の心を動かし、大義のために導く
-   - 【芸術と表現】：美と創造性を通じて人々の心に訴える
-   - 【戦略と勝利】：競争環境で最適な判断を下し、勝利を収める
-   - 【哲学と思索】：物事の本質を追求し、深い洞察を持つ
-   - 【誠実と献身】：真摯に使命に向き合い、献身的に働く
-   - 【調和と共存】：対立を超えて共存の道を探る
-   
-   さらに、サブカテゴリ（A, B, C）まで特定してください。
-
-3. **Core Value Extraction（核の抽出）**
-   回答パターンから、その人が人生で最も優先している「譲れない価値観」を特定してください。
-   - 複数の質問で一貫して左寄り（または右寄り）の回答があれば、それが核となる価値観
-   - 対極的な質問での回答の偏りから、深層的な価値観を推測
-
-4. **論理的マッチングアルゴリズム**
-   以下の基準でユーザーと歴史上の偉人をマッチングしてください：
-   
-   **スコアリング基準：**
-   - 実行力（Execution）: 行動力、決断力、目標達成への推進力
-     - 高スコア要因：挑戦志向、結果重視、リスクテイク傾向
-     - 低スコア要因：慎重志向、プロセス重視、安定志向
-   
-   - 人間性（Humanity）: 共感力、思いやり、人間関係への重視度
-     - 高スコア要因：他者配慮、協調志向、感情重視
-     - 低スコア要因：論理優先、個人主義、成果優先
-   
-   - 表現力（Style）: 自己表現、コミュニケーション、影響力の伝達
-     - 高スコア要因：発信志向、率直さ、外向性
-     - 低スコア要因：傾聴志向、控えめ、内向性
-   
-   - 魅力（Charm）: カリスマ性、存在感、人を惹きつける力
-     - 高スコア要因：リーダーシップ、ビジョン提示、信念の強さ
-     - 低スコア要因：サポート志向、謙虚さ、協調性
-
-5. **Benchmark Generation（比較対象の動的生成）**
-   上記のデータベースから、ユーザーの価値観に最も近い歴史上の偉人を1位から3位まで選定：
-   
-   **選定基準：**
-   - 価値観タイプ（8タイプ）の一致度
-   - サブカテゴリの一致度
-   - 4象限スコアパターンの類似性
-   - 核となる価値観との共鳴度
-   
-   **重要：国籍を問わず、世界中の歴史上の偉人から最適な人物を選定すること。**
-   **重要：必ず既に亡くなっている歴史上の人物を選定すること。**
-
-6. **Gap Analysis（乖離分析）**
-   1位の人物のステータスをALL100点とした場合、ユーザーのスコアを採点。
-
-7. **各質問への回答評価（questionAnalysis）**
-   各質問について、4象限への影響を-10〜+10で評価。
-
-### 最終出力フォーマット (JSON)
-{
-  "isFinished": true,
-  "result": {
-    "valueType": {
-      "main": "【革新と変革】",
-      "sub": "1-A. テクノロジー革新者",
-      "description": "既存の枠組みを超え、新しい価値を創造することに情熱を持つタイプ"
-    },
-    "userArchetype": "（ユーザーを表す分かりやすいキャッチコピー）",
-    "coreValue": "（特定された価値観）",
-    "benchmarks": [
-      {
-        "rank": 1,
-        "name": "（1位の人物名）",
-        "valueType": "【革新と変革】1-A. テクノロジー革新者",
-        "reason": "（なぜこの人物が1位なのか）",
-        "superiority": "（1位の人物がなぜあなたより優れているのか）",
-        "gaps": {
-          "execution": 30,
-          "humanity": 5,
-          "style": 60,
-          "charm": 40
-        }
-      },
-      {
-        "rank": 2,
-        "name": "（2位の人物名）",
-        "valueType": "【論理と効率】2-B. 戦略的経営者",
-        "reason": "（なぜこの人物が2位なのか）"
-      },
-      {
-        "rank": 3,
-        "name": "（3位の人物名）",
-        "valueType": "【共感とリーダーシップ】3-B. 義と信念の指導者",
-        "reason": "（なぜこの人物が3位なのか）"
-      }
-    ],
-    "scores": {
-      "execution": 70,
-      "humanity": 95,
-      "style": 40,
-      "charm": 60
-    },
-    "questionAnalysis": [
-      {
-        "questionNumber": 1,
-        "questionText": "質問テキスト",
-        "userAnswer": 3,
-        "interpretation": "中間的な回答から、バランスを重視する傾向が見られる",
-        "impact": {
-          "execution": 0,
-          "humanity": 5,
-          "style": -3,
-          "charm": 2
-        }
-      }
-    ],
-    "positioningText": "（現状の分析テキスト。1位の人物との対比で記述）",
-    "actionableAdvice": "（具体的な行動指針）"
+// 回答パターンから5象限スコアを計算
+function calculateScores(answers: Record<string, number>, questionHistory: any[]): { execution: number; humanity: number; style: number; charm: number; appearance: number } {
+  // ベーススコア
+  let execution = 50, humanity = 50, style = 50, charm = 50, appearance = 50;
+  
+  const answerValues = Object.values(answers) as number[];
+  if (answerValues.length === 0) {
+    return { execution, humanity, style, charm, appearance };
   }
-}`;
+
+  // 平均スコアと分布を計算
+  const avgScore = answerValues.reduce((a, b) => a + b, 0) / answerValues.length;
+  const leftCount = answerValues.filter(v => v <= 2).length;
+  const rightCount = answerValues.filter(v => v >= 4).length;
+  const extremeCount = answerValues.filter(v => v === 1 || v === 5).length;
+  
+  // 各質問への回答を分析
+  questionHistory.forEach((q, idx) => {
+    const answer = answers[(idx + 1).toString()] || answers[idx + 1] || 3;
+    const text = q.text?.toLowerCase() || '';
+    
+    // 実行力に影響する質問
+    if (text.includes('挑戦') || text.includes('決断') || text.includes('実行') || text.includes('目標') || text.includes('困難')) {
+      execution += (answer - 3) * 6;
+    }
+    
+    // 人間性に影響する質問
+    if (text.includes('人間') || text.includes('共感') || text.includes('協調') || text.includes('集団') || text.includes('奥さん') || text.includes('愛')) {
+      if (text.includes('奥さん')) {
+        humanity += (5 - answer) * 8; // 左側（誠実）を選ぶと人間性UP
+      } else {
+        humanity += (answer - 3) * 6;
+      }
+    }
+    
+    // 表現力に影響する質問
+    if (text.includes('表現') || text.includes('コミュニケーション') || text.includes('伝える') || text.includes('リーダー')) {
+      style += (answer - 3) * 6;
+    }
+    
+    // 魅力に影響する質問
+    if (text.includes('影響') || text.includes('カリスマ') || text.includes('リーダー') || text.includes('憧れ')) {
+      charm += (answer - 3) * 6;
+    }
+    
+    // 外見力に影響する質問
+    if (text.includes('外見') || text.includes('顔面') || text.includes('身だしなみ') || text.includes('第一印象') || text.includes('年齢')) {
+      appearance += (answer - 3) * 10;
+    }
+    
+    // 一般的な傾向
+    if (text.includes('自由') || text.includes('独立')) {
+      execution += (5 - answer) * 3;
+      humanity += (answer - 3) * 3;
+    }
+    
+    if (text.includes('論理') || text.includes('データ')) {
+      execution += (5 - answer) * 4;
+      humanity += (answer - 3) * 4;
+    }
+  });
+
+  // 全体的な回答傾向を反映
+  if (extremeCount > answerValues.length * 0.5) {
+    // 極端な回答が多い場合、実行力とカリスマ性が高い
+    execution += 10;
+    charm += 10;
+  }
+  
+  if (rightCount > leftCount) {
+    humanity += 5;
+    charm += 5;
+  } else if (leftCount > rightCount) {
+    execution += 5;
+    style += 5;
+  }
+
+  // スコアを0-100の範囲に正規化
+  execution = Math.max(30, Math.min(100, execution));
+  humanity = Math.max(30, Math.min(100, humanity));
+  style = Math.max(30, Math.min(100, style));
+  charm = Math.max(30, Math.min(100, charm));
+  appearance = Math.max(30, Math.min(100, appearance));
+
+  return { execution, humanity, style, charm, appearance };
+}
+
+// 類似度を計算
+function calculateSimilarity(userScores: any, figureScores: any): number {
+  const weights = { execution: 1.2, humanity: 1.5, style: 1.0, charm: 1.3, appearance: 0.8 };
+  let totalDiff = 0;
+  let totalWeight = 0;
+  
+  for (const key of Object.keys(weights) as (keyof typeof weights)[]) {
+    const diff = Math.abs(userScores[key] - figureScores[key]);
+    totalDiff += diff * weights[key];
+    totalWeight += weights[key] * 100;
+  }
+  
+  return 100 - (totalDiff / totalWeight * 100);
+}
+
+// 価値観タイプを決定
+function determineValueType(scores: any): { main: string; sub: string; description: string } {
+  const types = [
+    { main: "【革新と変革】", sub: "変革を恐れない挑戦者", check: () => scores.execution >= 75 && scores.style >= 65, description: "既存の枠組みを超え、新しい価値を創造することに情熱を持つタイプ" },
+    { main: "【論理と効率】", sub: "冷静な分析者", check: () => scores.execution >= 70 && scores.humanity <= 60, description: "データと分析に基づき、最適解を追求するタイプ" },
+    { main: "【共感とリーダーシップ】", sub: "人々を導く指導者", check: () => scores.humanity >= 80 && scores.charm >= 70, description: "人々の心を動かし、大義のために人々を導くタイプ" },
+    { main: "【芸術と表現】", sub: "創造的な表現者", check: () => scores.style >= 75, description: "美と創造性を通じて人々の心に訴えるタイプ" },
+    { main: "【戦略と勝利】", sub: "勝利を追求する戦略家", check: () => scores.execution >= 80 && scores.charm >= 75, description: "競争環境で最適な判断を下し、勝利を収めるタイプ" },
+    { main: "【哲学と思索】", sub: "深い洞察を持つ思索者", check: () => scores.humanity >= 75 && scores.execution <= 65, description: "物事の本質を追求し、深い洞察を持つタイプ" },
+    { main: "【誠実と献身】", sub: "使命に生きる献身者", check: () => scores.humanity >= 85, description: "真摯に使命に向き合い、献身的に働くタイプ" },
+    { main: "【調和と共存】", sub: "調和を重んじる調停者", check: () => scores.humanity >= 70 && scores.charm >= 65 && scores.execution <= 70, description: "対立を超えて共存の道を探るタイプ" },
+  ];
+
+  for (const type of types) {
+    if (type.check()) {
+      return { main: type.main, sub: type.sub, description: type.description };
+    }
+  }
+
+  // デフォルト
+  if (scores.humanity >= scores.execution) {
+    return { main: "【共感とリーダーシップ】", sub: "バランスの取れたリーダー", description: "人々との関係を大切にしながら、着実に前進するタイプ" };
+  } else {
+    return { main: "【論理と効率】", sub: "実践的な行動者", description: "論理的に考え、効率的に行動するタイプ" };
+  }
+}
+
+// ユーザーアーキタイプを生成
+function generateArchetype(scores: any, valueType: any): string {
+  const archetypes = [
+    { check: () => scores.execution >= 85 && scores.charm >= 85, text: "カリスマ的な変革者" },
+    { check: () => scores.humanity >= 90 && scores.charm >= 80, text: "人々を癒やし導く光" },
+    { check: () => scores.execution >= 80 && scores.humanity >= 80, text: "信念と共感を兼ね備えた指導者" },
+    { check: () => scores.style >= 85, text: "独自の世界観を持つ表現者" },
+    { check: () => scores.humanity >= 85, text: "静かな強さで人を導くビジョナリー" },
+    { check: () => scores.execution >= 80, text: "不屈の意志を持つ実行者" },
+    { check: () => scores.charm >= 80, text: "人を惹きつける魅力を持つ存在" },
+    { check: () => scores.appearance >= 75, text: "内外ともに磨かれた存在感の持ち主" },
+  ];
+
+  for (const arch of archetypes) {
+    if (arch.check()) {
+      return arch.text;
+    }
+  }
+
+  return "可能性を秘めた成長途上のリーダー";
+}
+
+// コアバリューを決定
+function determineCoreValue(scores: any): string {
+  if (scores.humanity >= 85) return "他者への思いやりと誠実さ";
+  if (scores.execution >= 85) return "目標達成への強い意志";
+  if (scores.charm >= 85) return "人を惹きつける信念の力";
+  if (scores.style >= 85) return "自己表現と創造性";
+  if (scores.humanity >= 75 && scores.execution >= 75) return "信念を持ち、行動で示す誠実さ";
+  if (scores.execution >= 75) return "効率的に結果を出す実行力";
+  if (scores.humanity >= 75) return "人との調和と協力";
+  return "バランスの取れた総合的な成長";
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { messages } = body;
 
-    // システムプロンプトをメッセージの先頭に追加
-    const messagesWithSystem = [
-      {
-        role: 'system',
-        content: SYSTEM_PROMPT,
-      },
-      ...messages,
-    ];
+    // メッセージから回答を抽出
+    const userMessage = messages[0]?.content || '';
+    
+    // 回答を解析
+    const answers: Record<string, number> = {};
+    const questionHistory: any[] = [];
+    
+    const lines = userMessage.split('\n');
+    let currentQuestion: any = null;
+    
+    for (const line of lines) {
+      const questionMatch = line.match(/^(\d+)\.\s*(.+)/);
+      if (questionMatch) {
+        if (currentQuestion) {
+          questionHistory.push(currentQuestion);
+        }
+        currentQuestion = { 
+          number: parseInt(questionMatch[1]), 
+          text: questionMatch[2].trim() 
+        };
+      }
+      
+      const answerMatch = line.match(/回答:\s*(\d)点/);
+      if (answerMatch && currentQuestion) {
+        const score = parseInt(answerMatch[1]);
+        answers[currentQuestion.number.toString()] = score;
+        currentQuestion.answer = score;
+      }
+      
+      if (line.includes('左:')) {
+        const leftMatch = line.match(/左:\s*([^(]+)/);
+        if (leftMatch && currentQuestion) {
+          currentQuestion.leftLabel = leftMatch[1].trim();
+        }
+      }
+      
+      if (line.includes('右:')) {
+        const rightMatch = line.match(/右:\s*([^(]+)/);
+        if (rightMatch && currentQuestion) {
+          currentQuestion.rightLabel = rightMatch[1].trim();
+        }
+      }
+    }
+    
+    if (currentQuestion) {
+      questionHistory.push(currentQuestion);
+    }
 
-    // ここでAI API（OpenAI、Anthropicなど）を呼び出す
-    // 実際の実装では、以下のコメントアウトされたコードを使用してください
+    // スコアを計算
+    const scores = calculateScores(answers, questionHistory);
+    
+    // 類似する偉人を検索
+    const figuresWithSimilarity = HISTORICAL_FIGURES.map(figure => ({
+      ...figure,
+      similarity: calculateSimilarity(scores, figure.scores)
+    })).sort((a, b) => b.similarity - a.similarity);
 
-    // デモ用のレスポンス
-    const demoResponse = {
+    // 上位3人を選択（同じタイプが続かないように）
+    const selectedFigures: typeof figuresWithSimilarity = [];
+    const usedTypes = new Set<string>();
+    
+    for (const figure of figuresWithSimilarity) {
+      if (selectedFigures.length >= 3) break;
+      
+      // 最初の1人は最も類似度が高い人
+      if (selectedFigures.length === 0) {
+        selectedFigures.push(figure);
+        usedTypes.add(figure.type);
+      } else {
+        // 2人目以降は異なるタイプを優先
+        if (!usedTypes.has(figure.type) || selectedFigures.length >= 2) {
+          selectedFigures.push(figure);
+          usedTypes.add(figure.type);
+        }
+      }
+    }
+
+    // 価値観タイプを決定
+    const valueType = determineValueType(scores);
+    const archetype = generateArchetype(scores, valueType);
+    const coreValue = determineCoreValue(scores);
+
+    // 1位との差分を計算
+    const firstPlace = selectedFigures[0];
+    const gaps = {
+      execution: Math.max(0, firstPlace.scores.execution - scores.execution),
+      humanity: Math.max(0, firstPlace.scores.humanity - scores.humanity),
+      style: Math.max(0, firstPlace.scores.style - scores.style),
+      charm: Math.max(0, firstPlace.scores.charm - scores.charm),
+      appearance: Math.max(0, firstPlace.scores.appearance - scores.appearance),
+    };
+
+    // 質問分析を生成
+    const questionAnalysis = questionHistory.map((q, idx) => {
+      const answer = q.answer || 3;
+      const text = q.text || '';
+      const leftLabel = q.leftLabel || '左の選択肢';
+      const rightLabel = q.rightLabel || '右の選択肢';
+      
+      // 各象限への影響を計算
+      let impact = { execution: 0, humanity: 0, style: 0, charm: 0, appearance: 0 };
+      
+      if (text.includes('外見') || text.includes('顔面')) {
+        impact.appearance = (answer - 3) * 8;
+        impact.charm = (answer - 3) * 3;
+      } else if (text.includes('奥さん') || text.includes('愛')) {
+        impact.humanity = (5 - answer) * 8;
+        impact.charm = (5 - answer) * 3;
+      } else if (text.includes('挑戦') || text.includes('困難')) {
+        impact.execution = (answer - 3) * 6;
+        impact.charm = (answer - 3) * 3;
+      } else if (text.includes('リーダー') || text.includes('影響')) {
+        impact.charm = (answer - 3) * 5;
+        impact.style = (answer - 3) * 4;
+      } else if (text.includes('協調') || text.includes('集団')) {
+        impact.humanity = (answer - 3) * 6;
+        impact.execution = (3 - answer) * 3;
+      } else {
+        // デフォルト
+        impact.execution = (answer - 3) * 2;
+        impact.humanity = (answer - 3) * 2;
+        impact.style = (answer - 3) * 2;
+        impact.charm = (answer - 3) * 2;
+      }
+
+      // 選択内容を具体的に表示
+      let selectedChoice: string;
+      let choiceDescription: string;
+      
+      if (answer === 1) {
+        selectedChoice = leftLabel;
+        choiceDescription = `「${leftLabel}」を強く支持`;
+      } else if (answer === 2) {
+        selectedChoice = leftLabel;
+        choiceDescription = `「${leftLabel}」寄り`;
+      } else if (answer === 3) {
+        selectedChoice = '中間';
+        choiceDescription = `「${leftLabel}」と「${rightLabel}」の中間`;
+      } else if (answer === 4) {
+        selectedChoice = rightLabel;
+        choiceDescription = `「${rightLabel}」寄り`;
+      } else {
+        selectedChoice = rightLabel;
+        choiceDescription = `「${rightLabel}」を強く支持`;
+      }
+
+      return {
+        questionNumber: idx + 1,
+        questionText: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
+        fullQuestionText: text,
+        leftLabel: leftLabel,
+        rightLabel: rightLabel,
+        userAnswer: answer,
+        selectedChoice: selectedChoice,
+        interpretation: choiceDescription,
+        impact
+      };
+    });
+
+    // 不足している要素を特定
+    const weakPoints = [];
+    if (gaps.execution > 20) weakPoints.push(`実行力（${scores.execution}点→${firstPlace.scores.execution}点を目指す）`);
+    if (gaps.humanity > 20) weakPoints.push(`人間性（${scores.humanity}点→${firstPlace.scores.humanity}点を目指す）`);
+    if (gaps.style > 20) weakPoints.push(`表現力（${scores.style}点→${firstPlace.scores.style}点を目指す）`);
+    if (gaps.charm > 20) weakPoints.push(`魅力（${scores.charm}点→${firstPlace.scores.charm}点を目指す）`);
+    if (gaps.appearance > 20) weakPoints.push(`外見力（${scores.appearance}点→${firstPlace.scores.appearance}点を目指す）`);
+
+    const response = {
       isFinished: true,
       result: {
-        valueType: {
-          main: "【共感とリーダーシップ】",
-          sub: "3-A. 非暴力・平和主義者",
-          description: "人々の心を動かし、大義のために人々を導くタイプ。特に非暴力と対話による変革を重視する。"
-        },
-        userArchetype: "静かな強さで人を導くビジョナリー",
-        coreValue: "信念を持ち、行動で示す誠実さ",
-        benchmarks: [
-          {
-            rank: 1,
-            name: "マハトマ・ガンジー",
-            valueType: "【共感とリーダーシップ】3-A. 非暴力・平和主義者",
-            reason: "あなたの持つ『言葉よりも行動で示す誠実さ』と『静かな強さ』は、非暴力抵抗運動で世界を変えたガンジーの生き様に最も近いため。",
-            superiority: "ガンジーは、あなたと同じく『静かな強さ』と『誠実さ』を持っていましたが、それを国家規模の変革へと昇華させました。彼の実行力は、信念を持ちながらも、何百万人もの人々を動かす力を持っていました。また、表現力においても、シンプルな言葉と象徴的な行動で世界中の人々の心を動かしました。",
-            gaps: {
-              execution: 25,
-              humanity: 5,
-              style: 35,
-              charm: 20
-            }
-          },
-          {
-            rank: 2,
-            name: "ネルソン・マンデラ",
-            valueType: "【共感とリーダーシップ】3-A. 非暴力・平和主義者",
-            reason: "27年間の投獄にも屈せず、信念を貫き通した強さと、敵をも許す人間性において、あなたの価値観と共鳴する部分がある。"
-          },
-          {
-            rank: 3,
-            name: "西郷隆盛",
-            valueType: "【共感とリーダーシップ】3-B. 義と信念の指導者",
-            reason: "義を重んじ、言葉よりも行動で示す姿勢、そして最後まで信念を貫いた生き様が、あなたの価値観と一致している。"
-          }
-        ],
-        scores: {
-          execution: 75,
-          humanity: 95,
-          style: 65,
-          charm: 80
-        },
-        questionAnalysis: [
-          {
-            questionNumber: 1,
-            questionText: "あなたはどちらを重視しますか？",
-            userAnswer: 3,
-            interpretation: "個人と集団のバランスを重視。状況に応じて柔軟に対応できる適応力を持つ。",
-            impact: { execution: 2, humanity: 5, style: 0, charm: 3 }
-          },
-          {
-            questionNumber: 2,
-            questionText: "新しい挑戦について、あなたはどう考えますか？",
-            userAnswer: 4,
-            interpretation: "リスクを受け入れつつも慎重に行動する姿勢。計画的な挑戦者。",
-            impact: { execution: 8, humanity: 0, style: 3, charm: 5 }
-          },
-          {
-            questionNumber: 3,
-            questionText: "意思決定において、あなたはどちらを優先しますか？",
-            userAnswer: 2,
-            interpretation: "論理よりも感情を重視。人間関係を大切にする傾向が強い。",
-            impact: { execution: -3, humanity: 10, style: 2, charm: 5 }
-          },
-          {
-            questionNumber: 4,
-            questionText: "目標達成において、あなたはどちらを選びますか？",
-            userAnswer: 4,
-            interpretation: "結果を重視しつつもプロセスを軽視しない。効率と質のバランスを取る。",
-            impact: { execution: 7, humanity: 3, style: 2, charm: 4 }
-          },
-          {
-            questionNumber: 5,
-            questionText: "コミュニケーションにおいて、あなたはどちらを好みますか？",
-            userAnswer: 2,
-            interpretation: "聞き手に回ることを好む。他者の意見を尊重し、共感力が高い。",
-            impact: { execution: -2, humanity: 8, style: -5, charm: 3 }
-          },
-          {
-            questionNumber: 6,
-            questionText: "困難に直面したとき、あなたはどう対処しますか？",
-            userAnswer: 5,
-            interpretation: "困難を成長の機会と捉える強い精神力。逆境に強い。",
-            impact: { execution: 10, humanity: 2, style: 5, charm: 8 }
-          },
-          {
-            questionNumber: 7,
-            questionText: "リーダーシップにおいて、あなたはどちらを重視しますか？",
-            userAnswer: 3,
-            interpretation: "指示型と支援型のバランス。状況に応じたリーダーシップを発揮。",
-            impact: { execution: 3, humanity: 5, style: 2, charm: 5 }
-          },
-          {
-            questionNumber: 8,
-            questionText: "時間の使い方について、あなたはどう考えますか？",
-            userAnswer: 4,
-            interpretation: "効率を重視しつつも、余裕を持った時間管理。計画性が高い。",
-            impact: { execution: 6, humanity: 2, style: 3, charm: 2 }
-          },
-          {
-            questionNumber: 9,
-            questionText: "人間関係において、あなたはどちらを優先しますか？",
-            userAnswer: 2,
-            interpretation: "深い関係を重視。少数の人と強い絆を築く傾向。",
-            impact: { execution: -3, humanity: 10, style: -2, charm: 5 }
-          },
-          {
-            questionNumber: 10,
-            questionText: "成功の定義について、あなたはどう考えますか？",
-            userAnswer: 3,
-            interpretation: "物質的成功と精神的充実のバランス。多面的な価値観を持つ。",
-            impact: { execution: 0, humanity: 5, style: 3, charm: 3 }
-          },
-          {
-            questionNumber: 11,
-            questionText: "変化に対して、あなたはどのように対応しますか？",
-            userAnswer: 4,
-            interpretation: "変化を受け入れつつも、核となる価値観は守る。適応力と一貫性の両立。",
-            impact: { execution: 5, humanity: 3, style: 5, charm: 5 }
-          },
-          {
-            questionNumber: 12,
-            questionText: "責任について、あなたはどう考えますか？",
-            userAnswer: 5,
-            interpretation: "強い責任感を持つ。自分の行動に対して高い倫理観を持っている。",
-            impact: { execution: 8, humanity: 5, style: 2, charm: 7 }
-          },
-          {
-            questionNumber: 13,
-            questionText: "創造性について、あなたはどちらを重視しますか？",
-            userAnswer: 3,
-            interpretation: "実用性と創造性のバランス。地に足のついた革新を好む。",
-            impact: { execution: 3, humanity: 0, style: 5, charm: 3 }
-          },
-          {
-            questionNumber: 14,
-            questionText: "競争について、あなたはどう考えますか？",
-            userAnswer: 2,
-            interpretation: "競争よりも協力を重視。Win-Winの関係を築くことを好む。",
-            impact: { execution: -2, humanity: 8, style: 0, charm: 5 }
-          },
-          {
-            questionNumber: 15,
-            questionText: "人生の優先順位について、あなたはどちらを重視しますか？",
-            userAnswer: 4,
-            interpretation: "仕事と人生のバランスを取りつつも、目標達成への強い意志を持つ。",
-            impact: { execution: 6, humanity: 5, style: 3, charm: 5 }
-          }
-        ],
-        positioningText: "あなたは今、人間性においてはマハトマ・ガンジーと同等の域に達しています（95点）。他者への共感力と誠実さは、あなたの最大の強みです。しかし、表現力（65点）において改善の余地があります。ガンジーは「非暴力」という概念を、シンプルな言葉と象徴的な行動で世界中に伝えました。あなたも同様の価値観を持っていますが、それを外部に伝える力をさらに磨く必要があります。",
-        actionableAdvice: `【現在のあなたに足りていないもの】
-あなたのレーダーチャートを見ると、「実行力」が75点、「表現力」が65点と、ガンジーとの差が大きい領域です。ガンジーは静かな強さを持ちながらも、塩の行進のような象徴的な行動で世界を動かしました。
+        valueType,
+        userArchetype: archetype,
+        coreValue,
+        benchmarks: selectedFigures.map((figure, idx) => ({
+          rank: idx + 1,
+          name: figure.name,
+          valueType: `【${figure.type}】${figure.subType}`,
+          reason: idx === 0 
+            ? `あなたの価値観パターン（実行力${scores.execution}点、人間性${scores.humanity}点）は、${figure.description}である${figure.name}の生き様と最も共鳴しています。`
+            : `${figure.description}。あなたの持つ${scores.humanity >= 70 ? '他者への思いやり' : '行動力'}と共通する部分があります。`,
+          ...(idx === 0 && {
+            superiority: `${figure.name}は、あなたと同じ価値観を持ちながら、それを歴史に残る形で実現しました。特に${Object.entries(gaps).filter(([k, v]) => v > 15).map(([k]) => k === 'execution' ? '実行力' : k === 'humanity' ? '人間性' : k === 'style' ? '表現力' : k === 'charm' ? '魅力' : '外見力').join('と')}において、あなたより高いレベルに達しています。`,
+            gaps
+          })
+        })),
+        scores,
+        questionAnalysis,
+        positioningText: `あなたは現在、${Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0] === 'execution' ? '実行力' : Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0] === 'humanity' ? '人間性' : Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0] === 'style' ? '表現力' : Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0] === 'charm' ? '魅力' : '外見力'}において最も高いスコア（${Math.max(...Object.values(scores))}点）を持っています。${firstPlace.name}との比較では、${weakPoints.length > 0 ? weakPoints.slice(0, 2).join('と') + 'に改善の余地があります。' : '非常にバランスの取れたプロファイルです。'}`,
+        actionableAdvice: `【${firstPlace.name}との差を埋めるために】
 
-【理解すべき考え方】
-ガンジーは「まず自分が変化になれ」という言葉を残しています。あなたは内面的な価値観は非常に高いレベルにありますが、それを外部に示す「行動」と「表現」が不足しています。
+${weakPoints.length > 0 ? `あなたのレーダーチャートを見ると、${weakPoints.join('、')}の領域で${firstPlace.name}との差があります。
 
-【不足している要素を上げるための具体的な方法】
+【具体的なアドバイス】
+${gaps.execution > 15 ? `
+1. **実行力を高める**
+   - 毎日小さな目標を設定し、必ず達成する習慣をつける
+   - 「完璧」を求めず、まず行動に移すことを優先する
+   - 週に1つ、新しい挑戦をする` : ''}
+${gaps.humanity > 15 ? `
+2. **人間性を深める**
+   - 相手の話を最後まで聴く習慣をつける
+   - 週に1回は誰かの役に立つ行動をする
+   - 感謝の気持ちを言葉にして伝える` : ''}
+${gaps.style > 15 ? `
+3. **表現力を磨く**
+   - 自分の考えを毎日書き出す習慣をつける
+   - 人前で話す機会を積極的に作る
+   - フィードバックを求め、改善する` : ''}
+${gaps.charm > 15 ? `
+4. **魅力を高める**
+   - 自分の信念を明確にし、それを行動で示す
+   - ポジティブなエネルギーを発信する
+   - 人の長所を見つけ、認める` : ''}
+${gaps.appearance > 15 ? `
+5. **外見力を向上させる**
+   - 清潔感を常に意識する
+   - 姿勢と表情を意識的に改善する
+   - 自分に合ったスタイルを見つける` : ''}` : `あなたは${firstPlace.name}にかなり近いバランスを持っています。現在の強みを活かしながら、さらなる高みを目指しましょう。`}
 
-1. **実行力（75点→90点を目指す）**
-   - ガンジーは毎日同じ時間に紡績機を回す習慣を持っていました
-   - 小さな日課を1つ決め、毎日必ず実行する
-   - 「今日やる」と決めたことは、完璧でなくても必ず着手する
-   - 週に1つ、自分の価値観を体現する具体的な行動を取る
-
-2. **表現力（65点→85点を目指す）**
-   - ガンジーは言葉少なでしたが、選んだ言葉には重みがありました
-   - 自分の考えを1日1回、短い文章で書き出す習慣をつける
-   - 会議や会話で、自分の意見を1つは必ず伝える
-   - 行動で示すことを意識しつつ、その意図を簡潔に言葉にする
-
-あなたの静かな強さは、ガンジーと同じく大きな可能性を秘めています。その強さを、より多くの人に伝える術を身につけることで、あなたは真のリーダーへと成長できるでしょう。`
+あなたには${firstPlace.name}と同じ可能性が秘められています。一歩一歩、着実に成長していきましょう。`
       }
     };
 
-    return NextResponse.json(demoResponse);
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error in chat API:', error);
     return NextResponse.json(
